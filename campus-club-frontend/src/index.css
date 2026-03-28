@@ -1,0 +1,35 @@
+/* @tailwind base;
+@tailwind components;
+@tailwind utilities; */
+@import "tailwindcss";
+.container {
+  @apply mx-auto;
+}
+@import "tailwindcss";
+
+/* 🚀 السطر ده هو البديل لـ darkMode: 'class' في النسخة الجديدة */
+@variant dark (&:where(.dark, .dark *));
+
+
+
+@import "tailwindcss";
+
+/* 🚀 تفعيل الـ Dark Mode للنسخة الجديدة 🚀 */
+@variant dark (&:where(.dark, .dark *));
+
+/* 🚀 نظبط الأساسيات هنا عشان تطبق على الـ App كله 🚀 */
+@layer base {
+  body {
+    /* لون الخلفية الأساسي ولون النص في الوضع الفاتح */
+    @apply bg-[#f8fafc] text-slate-900 transition-colors duration-300;
+  }
+  
+  .dark body {
+    /* لون الخلفية الأساسي ولون النص في الوضع الغامق */
+    @apply bg-slate-950 text-white;
+  }
+}
+
+.container {
+  @apply mx-auto;
+}
