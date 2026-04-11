@@ -1,4 +1,5 @@
 import { createContext, useState, useEffect } from "react";
+import { normalizeUser } from "../lib/auth-user";
 
 export const AuthContext = createContext();
 
@@ -9,16 +10,24 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
     const storedToken = localStorage.getItem("token");
+
     if (storedUser && storedToken) {
-      setUser(JSON.parse(storedUser));
-      setToken(storedToken);
+      try {
+        const parsed = JSON.parse(storedUser);
+        setUser(normalizeUser(parsed));
+        setToken(storedToken);
+      } catch {
+        localStorage.removeItem("user");
+        localStorage.removeItem("token");
+      }
     }
   }, []);
 
   const login = (userData, authToken) => {
-    setUser(userData);
+    const normalized = normalizeUser(userData);
+    setUser(normalized);
     setToken(authToken);
-    localStorage.setItem("user", JSON.stringify(userData));
+    localStorage.setItem("user", JSON.stringify(normalized));
     localStorage.setItem("token", authToken);
   };
 
@@ -29,10 +38,10 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem("token");
   };
 
-  // 🚀 الدالة الجديدة لتحديث بيانات اليوزر (زي الصورة والاسم)
   const updateUser = (newUserData) => {
-    setUser(newUserData);
-    localStorage.setItem("user", JSON.stringify(newUserData));
+    const normalized = normalizeUser(newUserData);
+    setUser(normalized);
+    localStorage.setItem("user", JSON.stringify(normalized));
   };
 
   return (

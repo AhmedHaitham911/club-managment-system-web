@@ -1,16 +1,43 @@
-# React + Vite
+# Campus Club Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React + Vite frontend wired to the Campus Club monolithic backend.
 
-Currently, two official plugins are available:
+## Environment
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+Create `.env` from `.env.example`:
 
-## React Compiler
+```bash
+cp .env.example .env
+```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Key variable:
 
-## Expanding the ESLint configuration
+- `VITE_API_BASE_URL` (default `http://localhost:4000/api/v1`)
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Local Run
+
+```bash
+npm ci
+npm run dev
+```
+
+Default URL:
+
+- `http://localhost:5173`
+
+## Docker Build + Run
+
+```bash
+docker build -t campus-club-frontend --build-arg VITE_API_BASE_URL=http://localhost:4000/api/v1 .
+docker run --rm -p 5173:80 campus-club-frontend
+```
+
+The container serves the built SPA through nginx with route fallback (`index.html`) enabled.
+
+## Docker Compose (Frontend Repo Only)
+
+```bash
+docker compose up --build
+```
+
+This frontend repository is standalone. It expects backend to be running separately at `VITE_API_BASE_URL`.

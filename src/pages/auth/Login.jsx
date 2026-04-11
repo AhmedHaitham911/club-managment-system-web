@@ -2,191 +2,148 @@ import { useState, useContext } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useFormik } from "formik";
 import * as Yup from "yup";
-import axios from "axios";
-import { AuthContext } from "../../context/AuthContext";
-import { Mail, Lock, Eye, EyeOff, Rocket, Zap, Sparkles } from "lucide-react";
 import toast from "react-hot-toast";
+import { Mail, Lock, Eye, EyeOff, ShieldCheck } from "lucide-react";
+import { AuthContext } from "../../context/AuthContext";
+import { api, getErrorMessage, unwrapData } from "../../lib/api";
 
 export default function Login() {
   const navigate = useNavigate();
   const { login } = useContext(AuthContext);
   const [showPassword, setShowPassword] = useState(false);
+  const [otpToken, setOtpToken] = useState("");
+  const [otpCode, setOtpCode] = useState("");
 
   const formik = useFormik({
     initialValues: { email: "", password: "" },
     validationSchema: Yup.object({
-      email: Yup.string()
-        .email("Oops! That doesn't look like a valid email 😅")
-        .required("We need your email to let you in! 📩"),
-      password: Yup.string().required("Don't forget your password! 🔑"),
+      email: Yup.string().email("Invalid email").required("Email is required"),
+      password: Yup.string().required("Password is required"),
     }),
     onSubmit: async (values) => {
-      const toastId = toast.loading("Verifying credentials...");
+      const toastId = toast.loading("Signing in...");
       try {
-        const response = await axios.get(
-          `http://localhost:5000/users?email=${values.email}&password=${values.password}`
-        );
-        const usersFound = response.data;
+        const response = await api.post("/auth/login", values);
+        const payload = unwrapData(response);
 
-        if (usersFound.length > 0) {
-          const loggedInUser = usersFound[0];
-          
-          // 🚀 الحماية: لو الأكونت Pending نمنعه من الدخول
-          if (loggedInUser.status === "Pending") {
-            toast.error("Account pending Admin approval. Check your email! ⏳", { id: toastId });
-            return;
-          }
-
-          const dummyToken = "jwt_token_" + loggedInUser.id;
-          login(loggedInUser, dummyToken);
-          toast.success(`Welcome back, ${loggedInUser.name}! 🎉`, { id: toastId });
-          navigate("/");
-        } else {
-          toast.error("Invalid email or password! Please sign up first. 🚫", { id: toastId });
+        if (payload?.requiresOtp) {
+          setOtpToken(payload.otpToken);
+          toast.success("OTP required. Check your email for the code.", { id: toastId });
+          return;
         }
+
+        login(payload.user, payload.token);
+        toast.success("Login successful.", { id: toastId });
+        navigate("/");
       } catch (error) {
-        toast.error("Server error. Please try again later. 🔌", { id: toastId });
+        toast.error(getErrorMessage(error, "Login failed."), { id: toastId });
       }
     },
   });
 
+  const handleOtpVerify = async (e) => {
+    e.preventDefault();
+    const toastId = toast.loading("Verifying OTP...");
+    try {
+      const response = await api.post("/auth/login/otp/verify", {
+        otpToken,
+        otpCode,
+      });
+      const payload = unwrapData(response);
+      login(payload.user, payload.token);
+      toast.success("Login successful.", { id: toastId });
+      navigate("/");
+    } catch (error) {
+      toast.error(getErrorMessage(error, "OTP verification failed."), {
+        id: toastId,
+      });
+    }
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#f8fafc] dark:bg-slate-950 p-4 sm:p-8 font-sans transition-colors duration-300">
-      <div className="w-full max-w-5xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl rounded-3xl shadow-[0_20px_50px_rgba(8,_112,_184,_0.07)] dark:shadow-none border border-white dark:border-slate-800 overflow-hidden flex flex-col md:flex-row transition-all duration-500">
-        
-        <div className="hidden md:flex md:w-1/2 bg-gradient-to-br from-violet-600 via-fuchsia-500 to-orange-500 p-12 text-white flex-col justify-between relative overflow-hidden">
-          <div className="absolute top-[-10%] right-[-10%] w-72 h-72 bg-white opacity-10 rounded-full blur-3xl mix-blend-overlay animate-pulse"></div>
-          <div className="absolute bottom-[-10%] left-[-10%] w-80 h-80 bg-yellow-300 opacity-20 rounded-full blur-3xl mix-blend-overlay"></div>
+    <div className="min-h-screen flex items-center justify-center bg-[#f8fafc] dark:bg-slate-950 p-4">
+      <div className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-3xl shadow-xl border border-gray-100 dark:border-slate-800 p-8">
+        <h1 className="text-3xl font-black text-gray-900 dark:text-white mb-2">Sign In</h1>
+        <p className="text-gray-500 dark:text-gray-400 mb-8">
+          Use your Campus Club account credentials.
+        </p>
 
-          <div className="relative z-10 flex items-center gap-3">
-            <div className="bg-white/20 p-3 rounded-2xl backdrop-blur-md shadow-lg transform -rotate-6 hover:rotate-0 transition-transform duration-300">
-              <Zap size={32} className="text-yellow-300" fill="currentColor" />
-            </div>
-            <h1 className="text-3xl font-black tracking-tight text-white drop-shadow-md">
-              CampusClub.
-            </h1>
-          </div>
-
-          <div className="relative z-10 space-y-6">
-            <h2 className="text-5xl font-black leading-tight drop-shadow-sm">
-              Level up your <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-orange-200">
-                campus life! 🚀
-              </span>
-            </h2>
-            <p className="text-lg text-white/90 max-w-md leading-relaxed font-medium">
-              Join the ultimate student hub. Discover awesome events, connect
-              with your peers, and make unforgettable memories.
-            </p>
-          </div>
-
-          <div className="relative z-10">
-            <p className="text-sm font-bold text-white/80 mb-3 flex items-center gap-2">
-              <Sparkles size={16} className="text-yellow-300" /> Join 500+ active students
-            </p>
-            <div className="flex -space-x-3">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="w-10 h-10 rounded-full border-2 border-fuchsia-500 bg-gray-200 overflow-hidden transform hover:-translate-y-2 transition-transform duration-300 cursor-pointer shadow-lg">
-                  <img src={`https://i.pravatar.cc/100?img=${i + 20}`} alt="Student" className="w-full h-full object-cover" />
-                </div>
-              ))}
+        <form onSubmit={formik.handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Email</label>
+            <div className="relative">
+              <Mail size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                type="email"
+                name="email"
+                value={formik.values.email}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
+                className="w-full pl-11 pr-4 py-3 rounded-xl border-2 border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 dark:text-white"
+                placeholder="student240001@bue.edu.eg"
+              />
             </div>
           </div>
-        </div>
 
-        <div className="w-full md:w-1/2 p-8 sm:p-12 flex flex-col justify-center relative bg-white dark:bg-slate-900 transition-colors">
-          <div className="mb-10 text-center md:text-left">
-            <h2 className="text-3xl font-black text-gray-900 dark:text-white mb-2">
-              What's up! 👋
-            </h2>
-            <p className="text-gray-500 dark:text-gray-400 font-medium">
-              Ready to catch up on the latest campus buzz?
-            </p>
+          <div>
+            <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Password</label>
+            <div className="relative">
+              <Lock size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                type={showPassword ? "text" : "password"}
+                name="password"
+                value={formik.values.password}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
+                className="w-full pl-11 pr-11 py-3 rounded-xl border-2 border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 dark:text-white"
+                placeholder="********"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((s) => !s)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
           </div>
 
-          <form onSubmit={formik.handleSubmit} className="space-y-5">
-            <div>
-              <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
-                Student Email
-              </label>
-              <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400 group-focus-within:text-violet-600 transition-colors">
-                  <Mail size={20} />
-                </div>
-                <input
-                  type="email"
-                  name="email"
-                  placeholder="name@campus.edu"
-                  className={`w-full pl-12 pr-4 py-3.5 rounded-2xl border-2 ${
-                    formik.touched.email && formik.errors.email
-                      ? "border-red-400 focus:border-red-500 bg-red-50 dark:bg-red-950/30"
-                      : "border-gray-100 dark:border-slate-700 focus:border-violet-500 bg-gray-50 dark:bg-slate-800"
-                  } focus:bg-white dark:focus:bg-slate-900 dark:text-white outline-none transition-all duration-300 focus:-translate-y-1 focus:shadow-lg`}
-                  value={formik.values.email}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                />
-              </div>
-              {formik.touched.email && formik.errors.email && (
-                <p className="mt-2 text-sm font-medium text-red-500 flex items-center gap-1 animate-bounce">
-                  {formik.errors.email}
-                </p>
-              )}
-            </div>
+          <button
+            type="submit"
+            className="w-full py-3 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold"
+          >
+            Login
+          </button>
+        </form>
 
-            <div>
-              <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
-                Password
-              </label>
-              <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400 group-focus-within:text-violet-600 transition-colors">
-                  <Lock size={20} />
-                </div>
-                <input
-                  type={showPassword ? "text" : "password"}
-                  name="password"
-                  placeholder="••••••••"
-                  className={`w-full pl-12 pr-12 py-3.5 rounded-2xl border-2 ${
-                    formik.touched.password && formik.errors.password
-                      ? "border-red-400 focus:border-red-500 bg-red-50 dark:bg-red-950/30"
-                      : "border-gray-100 dark:border-slate-700 focus:border-violet-500 bg-gray-50 dark:bg-slate-800"
-                  } focus:bg-white dark:focus:bg-slate-900 dark:text-white outline-none transition-all duration-300 focus:-translate-y-1 focus:shadow-lg`}
-                  value={formik.values.password}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-violet-600 transition-colors"
-                >
-                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                </button>
-              </div>
+        {otpToken && (
+          <form onSubmit={handleOtpVerify} className="mt-6 space-y-3 p-4 rounded-2xl bg-violet-50 dark:bg-violet-950/30 border border-violet-100 dark:border-violet-900">
+            <div className="flex items-center gap-2 text-violet-700 dark:text-violet-300 font-bold text-sm">
+              <ShieldCheck size={16} /> OTP Verification
             </div>
-
-            <div className="flex items-center justify-end pt-1">
-              <a href="#" className="text-sm font-bold text-violet-600 dark:text-violet-400 hover:text-fuchsia-500 transition-colors">
-                Forgot Password?
-              </a>
-            </div>
-
+            <input
+              type="text"
+              maxLength={6}
+              value={otpCode}
+              onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ""))}
+              className="w-full px-4 py-3 rounded-xl border-2 border-violet-200 dark:border-violet-800 bg-white dark:bg-slate-900 dark:text-white"
+              placeholder="Enter 6-digit code"
+            />
             <button
               type="submit"
-              disabled={!formik.isValid || formik.isSubmitting}
-              className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-violet-600 to-fuchsia-500 text-white font-black py-4 px-4 rounded-2xl hover:from-violet-700 hover:to-fuchsia-600 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-xl hover:shadow-fuchsia-500/30 dark:hover:shadow-fuchsia-900/30 disabled:opacity-70 mt-4"
+              className="w-full py-3 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold"
             >
-              Let's Go! <Rocket size={20} />
+              Verify OTP
             </button>
           </form>
+        )}
 
-          <p className="mt-8 text-center text-sm font-medium text-gray-500 dark:text-gray-400">
-            New to the campus?{" "}
-            <Link to="/signup" className="font-black text-violet-600 dark:text-violet-400 hover:text-fuchsia-500 underline decoration-2 underline-offset-4">
-              Join the club
-            </Link>
-          </p>
-        </div>
+        <p className="mt-6 text-sm text-gray-500 dark:text-gray-400">
+          New account?{" "}
+          <Link to="/signup" className="font-bold text-violet-600 dark:text-violet-400">
+            Create one
+          </Link>
+        </p>
       </div>
     </div>
   );
