@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, useContext } from "react";
 import toast from "react-hot-toast";
 import { Megaphone, Plus, Edit3, Trash2, Pin } from "lucide-react";
-import { AuthContext } from "../../context/AuthContext";
+import { AuthContext } from "../../context/auth-context";
 import { api, getErrorMessage, unwrapData } from "../../lib/api";
 
 const emptyForm = { title: "", content: "", pinned: false };

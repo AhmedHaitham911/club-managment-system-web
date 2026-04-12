@@ -12,7 +12,7 @@ cp .env.example .env
 
 Key variable:
 
-- `VITE_API_BASE_URL` (default `http://localhost:4000/api/v1`)
+- `VITE_API_BASE_URL` (development default `http://localhost:4000/api/v1`, production-safe default `/api/v1`)
 
 ## Local Run
 
@@ -25,6 +25,13 @@ Default URL:
 
 - `http://localhost:5173`
 
+Run checks:
+
+```bash
+npm run lint
+npm test
+```
+
 ## Docker Build + Run
 
 ```bash
@@ -36,8 +43,18 @@ The container serves the built SPA through nginx with route fallback (`index.htm
 
 ## Docker Compose (Frontend Repo Only)
 
+Development default (HMR + file watching):
+
 ```bash
 docker compose up --build
+```
+
+This mode runs Vite dev server in Docker with bind mounts and polling enabled for reliable live reload on Windows/macOS filesystems.
+
+Production (nginx static build):
+
+```bash
+docker compose -f docker-compose.prod.yml up --build
 ```
 
 This frontend repository is standalone. It expects backend to be running separately at `VITE_API_BASE_URL`.

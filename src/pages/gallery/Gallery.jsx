@@ -1,8 +1,11 @@
 import { useEffect, useState, useContext } from "react";
 import toast from "react-hot-toast";
 import { Image as ImageIcon, Plus, Edit3, Trash2 } from "lucide-react";
-import { AuthContext } from "../../context/AuthContext";
+import { AuthContext } from "../../context/auth-context";
 import { api, getErrorMessage, unwrapData } from "../../lib/api";
+
+const MAX_IMAGE_FILE_SIZE_BYTES = 10 * 1024 * 1024;
+const ACCEPTED_IMAGE_TYPES = "image/png,image/jpeg,image/jpg,image/webp,image/gif";
 
 const emptyPhoto = {
   title: "",
@@ -18,6 +21,8 @@ export default function Gallery() {
   const [photos, setPhotos] = useState([]);
   const [form, setForm] = useState(emptyPhoto);
   const [editingId, setEditingId] = useState("");
+  const [imageFile, setImageFile] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const loadPhotos = async () => {
     const res = await api.get("/gallery?limit=200");
@@ -32,19 +37,41 @@ export default function Gallery() {
 
   const onSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmitting) return;
+
+    if (!imageFile && !form.imageUrl.trim()) {
+      toast.error("Upload an image file or provide an image URL.");
+      return;
+    }
+
+    const payload = new FormData();
+    payload.append("title", form.title);
+    payload.append("description", form.description);
+    payload.append("date", form.date);
+    if (form.imageUrl.trim()) {
+      payload.append("imageUrl", form.imageUrl.trim());
+    }
+    if (imageFile) {
+      payload.append("image", imageFile);
+    }
+
     const toastId = toast.loading(editingId ? "Updating photo..." : "Adding photo...");
+    setIsSubmitting(true);
     try {
       if (editingId) {
-        await api.put(`/gallery/${editingId}`, form);
+        await api.put(`/gallery/${editingId}`, payload);
       } else {
-        await api.post("/gallery", form);
+        await api.post("/gallery", payload);
       }
       await loadPhotos();
       setForm(emptyPhoto);
       setEditingId("");
+      setImageFile(null);
       toast.success(editingId ? "Photo updated." : "Photo added.", { id: toastId });
     } catch (error) {
       toast.error(getErrorMessage(error, "Save failed."), { id: toastId });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -56,6 +83,7 @@ export default function Gallery() {
       date: photo.date ? new Date(photo.date).toISOString().slice(0, 10) : "",
       imageUrl: photo.imageUrl || "",
     });
+    setImageFile(null);
   };
 
   const onDelete = async (id) => {
@@ -67,6 +95,23 @@ export default function Gallery() {
     } catch (error) {
       toast.error(getErrorMessage(error, "Delete failed."), { id: toastId });
     }
+  };
+
+  const onImageFileChange = (e) => {
+    const file = e.target.files?.[0] || null;
+    if (!file) {
+      setImageFile(null);
+      return;
+    }
+
+    if (file.size > MAX_IMAGE_FILE_SIZE_BYTES) {
+      toast.error("Image size must be 10 MB or less.");
+      e.target.value = "";
+      setImageFile(null);
+      return;
+    }
+
+    setImageFile(file);
   };
 
   return (
@@ -96,12 +141,17 @@ export default function Gallery() {
             required
           />
           <input
+            type="file"
+            accept={ACCEPTED_IMAGE_TYPES}
+            onChange={onImageFileChange}
+            className="md:col-span-2 px-3 py-2 rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 dark:text-white"
+          />
+          <input
             type="text"
-            placeholder="Image URL"
+            placeholder="Image URL (optional if you upload a file)"
             value={form.imageUrl}
             onChange={(e) => setForm((p) => ({ ...p, imageUrl: e.target.value }))}
             className="md:col-span-2 px-3 py-2 rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 dark:text-white"
-            required
           />
           <textarea
             placeholder="Description"
@@ -113,9 +163,10 @@ export default function Gallery() {
           <div className="md:col-span-2 flex gap-2">
             <button
               type="submit"
-              className="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold flex items-center gap-2"
+              disabled={isSubmitting}
+              className="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold flex items-center gap-2 disabled:opacity-60"
             >
-              <Plus size={16} /> {editingId ? "Update" : "Add"}
+              <Plus size={16} /> {isSubmitting ? "Uploading..." : editingId ? "Update" : "Add"}
             </button>
             {editingId && (
               <button
@@ -123,6 +174,7 @@ export default function Gallery() {
                 onClick={() => {
                   setEditingId("");
                   setForm(emptyPhoto);
+                  setImageFile(null);
                 }}
                 className="px-4 py-2 rounded-xl bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-gray-300 font-bold"
               >

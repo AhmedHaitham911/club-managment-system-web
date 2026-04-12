@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useContext } from "react";
-import { AuthContext } from "../../context/AuthContext";
+import { AuthContext } from "../../context/auth-context";
 import {
   Home as HomeIcon,
   Calendar,
@@ -16,6 +16,7 @@ import {
 export default function Sidebar() {
   const navigate = useNavigate();
   const { user, logout } = useContext(AuthContext);
+  const isOfficer = user?.role === "Officer";
 
   const handleLogout = () => {
     logout();
@@ -43,16 +44,18 @@ export default function Sidebar() {
           <Link to="/events" className="flex items-center gap-3 px-4 py-3 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-xl font-medium">
             <Calendar size={20} /> Events
           </Link>
-          <Link to="/members" className="flex items-center gap-3 px-4 py-3 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-xl font-medium">
-            <Users size={20} /> Members
-          </Link>
+          {isOfficer && (
+            <Link to="/members" className="flex items-center gap-3 px-4 py-3 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-xl font-medium">
+              <Users size={20} /> Members
+            </Link>
+          )}
           <Link to="/announcements" className="flex items-center gap-3 px-4 py-3 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-xl font-medium">
             <Megaphone size={20} /> Announcements
           </Link>
           <Link to="/gallery" className="flex items-center gap-3 px-4 py-3 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-xl font-medium">
             <ImageIcon size={20} /> Gallery
           </Link>
-          {user?.role === "Officer" && (
+          {isOfficer && (
             <Link to="/admin-chat" className="flex items-center gap-3 px-4 py-3 mt-4 text-orange-600 dark:text-orange-500 bg-orange-50 dark:bg-orange-950/30 rounded-xl font-bold">
               <ShieldAlert size={20} /> Admin Chat
             </Link>

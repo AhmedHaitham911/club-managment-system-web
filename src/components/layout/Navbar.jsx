@@ -1,8 +1,8 @@
 import { useState, useEffect, useContext, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Bell, Megaphone, Calendar, Moon, Sun } from "lucide-react";
-import { AuthContext } from "../../context/AuthContext";
-import { ThemeContext } from "../../context/ThemeContext";
+import { AuthContext } from "../../context/auth-context";
+import { ThemeContext } from "../../context/theme-context";
 import { api, unwrapData } from "../../lib/api";
 
 export default function Navbar() {

@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState, useContext } from "react";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
-import { Users, CheckCircle2, XCircle, Shield, Calendar } from "lucide-react";
-import { AuthContext } from "../../context/AuthContext";
+import { Users, CheckCircle2, XCircle, Shield, Calendar, Upload } from "lucide-react";
+import { AuthContext } from "../../context/auth-context";
 import { api, getErrorMessage, unwrapData } from "../../lib/api";
 import { normalizeUsers } from "../../lib/auth-user";
 
@@ -13,26 +13,29 @@ export default function Members() {
   const [events, setEvents] = useState([]);
   const [selectedEventId, setSelectedEventId] = useState("");
   const [attendees, setAttendees] = useState([]);
+  const [csvFile, setCsvFile] = useState(null);
+  const [csvInputKey, setCsvInputKey] = useState(0);
+  const [importSummary, setImportSummary] = useState(null);
 
-  const loadMembers = async () => {
+  const loadMembers = useCallback(async () => {
     const res = await api.get("/admin/users?limit=200");
     setMembers(normalizeUsers(unwrapData(res) || []));
-  };
+  }, []);
 
-  const loadEvents = async () => {
+  const loadEvents = useCallback(async () => {
     const res = await api.get("/events?limit=200");
     const rows = unwrapData(res) || [];
     setEvents(rows);
     if (rows.length && !selectedEventId) {
       setSelectedEventId(String(rows[0]._id));
     }
-  };
+  }, [selectedEventId]);
 
-  const loadAttendees = async (eventId) => {
+  const loadAttendees = useCallback(async (eventId) => {
     if (!eventId) return;
     const res = await api.get(`/events/${eventId}/attendees?limit=200`);
     setAttendees(unwrapData(res) || []);
-  };
+  }, []);
 
   useEffect(() => {
     if (!isOfficer) return;
@@ -40,14 +43,14 @@ export default function Members() {
     Promise.all([loadMembers(), loadEvents()]).catch((error) => {
       toast.error(getErrorMessage(error, "Failed to load members."));
     });
-  }, [isOfficer]);
+  }, [isOfficer, loadEvents, loadMembers]);
 
   useEffect(() => {
     if (!isOfficer || !selectedEventId) return;
     loadAttendees(selectedEventId).catch((error) => {
       toast.error(getErrorMessage(error, "Failed to load attendees."));
     });
-  }, [isOfficer, selectedEventId]);
+  }, [isOfficer, loadAttendees, selectedEventId]);
 
   const pending = useMemo(
     () => members.filter((m) => m.status === "Pending"),
@@ -92,6 +95,29 @@ export default function Members() {
     }
   };
 
+  const onImportCsv = async (e) => {
+    e.preventDefault();
+    if (!csvFile) {
+      toast.error("Select a CSV file first.");
+      return;
+    }
+
+    const toastId = toast.loading("Importing members CSV...");
+    try {
+      const formData = new FormData();
+      formData.append("file", csvFile);
+      const res = await api.post("/admin/users/import-csv", formData);
+      const summary = unwrapData(res) || null;
+      setImportSummary(summary);
+      await loadMembers();
+      setCsvFile(null);
+      setCsvInputKey((prev) => prev + 1);
+      toast.success("CSV imported successfully.", { id: toastId });
+    } catch (error) {
+      toast.error(getErrorMessage(error, "CSV import failed."), { id: toastId });
+    }
+  };
+
   if (!isOfficer) {
     return (
       <div className="p-8 max-w-4xl mx-auto w-full">
@@ -109,6 +135,36 @@ export default function Members() {
       </h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <form
+          onSubmit={onImportCsv}
+          className="lg:col-span-2 p-5 rounded-2xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900"
+        >
+          <h2 className="font-black text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+            <Upload size={18} /> Import Members CSV
+          </h2>
+          <div className="flex flex-col md:flex-row gap-3">
+            <input
+              key={csvInputKey}
+              type="file"
+              accept=".csv,text/csv"
+              onChange={(e) => setCsvFile(e.target.files?.[0] || null)}
+              className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 dark:text-white"
+            />
+            <button
+              type="submit"
+              className="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold"
+            >
+              Import CSV
+            </button>
+          </div>
+          {importSummary && (
+            <div className="mt-3 text-sm text-gray-600 dark:text-gray-300">
+              Imported: created {importSummary.created || 0}, updated {importSummary.updated || 0}, skipped{" "}
+              {importSummary.skipped || 0}, failed {(importSummary.failed || []).length}.
+            </div>
+          )}
+        </form>
+
         <div className="p-5 rounded-2xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900">
           <h2 className="font-black text-gray-900 dark:text-white mb-3">Pending Requests</h2>
           <div className="space-y-3">

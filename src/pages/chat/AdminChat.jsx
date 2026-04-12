@@ -2,17 +2,14 @@ import { useEffect, useState, useContext } from "react";
 import { Navigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { Send, ShieldAlert } from "lucide-react";
-import { AuthContext } from "../../context/AuthContext";
+import { AuthContext } from "../../context/auth-context";
 import { api, getErrorMessage, unwrapData } from "../../lib/api";
 
 export default function AdminChat() {
   const { user } = useContext(AuthContext);
+  const isOfficer = user?.role === "Officer";
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
-
-  if (user?.role !== "Officer") {
-    return <Navigate to="/" replace />;
-  }
 
   const loadMessages = async () => {
     const res = await api.get("/admin/chat/messages?limit=100");
@@ -20,10 +17,16 @@ export default function AdminChat() {
   };
 
   useEffect(() => {
+    if (!isOfficer) return;
+
     loadMessages().catch((error) => {
       toast.error(getErrorMessage(error, "Failed to load chat."));
     });
-  }, []);
+  }, [isOfficer]);
+
+  if (!isOfficer) {
+    return <Navigate to="/" replace />;
+  }
 
   const send = async (e) => {
     e.preventDefault();

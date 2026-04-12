@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState, useContext } from "react";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
-import { Calendar, MapPin, Users, Plus, Trash2, Edit3, Ticket } from "lucide-react";
-import { AuthContext } from "../../context/AuthContext";
+import { Calendar, MapPin, Users, Plus, Trash2, Edit3, Ticket, Eye, X } from "lucide-react";
+import { AuthContext } from "../../context/auth-context";
 import { api, getErrorMessage, unwrapData } from "../../lib/api";
 
 const emptyForm = {
@@ -23,13 +23,15 @@ export default function Events() {
   const [search, setSearch] = useState("");
   const [form, setForm] = useState(emptyForm);
   const [editingEventId, setEditingEventId] = useState("");
+  const [detailsEvent, setDetailsEvent] = useState(null);
+  const [detailsLoading, setDetailsLoading] = useState(false);
 
-  const loadEvents = async () => {
+  const loadEvents = useCallback(async () => {
     const res = await api.get("/events?limit=100");
     setEvents(unwrapData(res) || []);
-  };
+  }, []);
 
-  const loadMyRsvps = async () => {
+  const loadMyRsvps = useCallback(async () => {
     if (!isMember) {
       setMyRsvpEventIds(new Set());
       return;
@@ -38,7 +40,7 @@ export default function Events() {
     const res = await api.get("/rsvps/me?limit=200");
     const rows = unwrapData(res) || [];
     setMyRsvpEventIds(new Set(rows.map((row) => String(row.eventId))));
-  };
+  }, [isMember]);
 
   useEffect(() => {
     const run = async () => {
@@ -52,7 +54,7 @@ export default function Events() {
     };
 
     run();
-  }, [isMember]);
+  }, [loadEvents, loadMyRsvps]);
 
   const filteredEvents = useMemo(() => {
     const q = search.toLowerCase();
@@ -133,6 +135,18 @@ export default function Events() {
     }
   };
 
+  const onViewDetails = async (eventId) => {
+    setDetailsLoading(true);
+    try {
+      const res = await api.get(`/events/${eventId}`);
+      setDetailsEvent(unwrapData(res));
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Failed to load event details."));
+    } finally {
+      setDetailsLoading(false);
+    }
+  };
+
   if (loading) {
     return <div className="p-8">Loading events...</div>;
   }
@@ -209,11 +223,82 @@ export default function Events() {
                     Cancel RSVP
                   </button>
                 )}
+                <button
+                  onClick={() => onViewDetails(eventId)}
+                  className="px-3 py-2 rounded-lg bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-gray-200 font-bold text-sm flex items-center gap-1"
+                >
+                  <Eye size={14} /> Details
+                </button>
               </div>
             </div>
           );
         })}
       </div>
+
+      {detailsEvent && (
+        <div className="fixed inset-0 z-40 bg-black/40 flex items-center justify-center p-4">
+          <div className="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-slate-700 p-6 relative">
+            <button
+              type="button"
+              onClick={() => setDetailsEvent(null)}
+              className="absolute top-3 right-3 p-2 rounded-lg bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-gray-200"
+            >
+              <X size={16} />
+            </button>
+
+            <h2 className="text-2xl font-black text-gray-900 dark:text-white mb-2">
+              {detailsEvent.title}
+            </h2>
+            <p className="text-gray-600 dark:text-gray-300 mb-4">{detailsEvent.description}</p>
+            <div className="space-y-2 text-sm text-gray-700 dark:text-gray-200 mb-5">
+              <div>
+                <span className="font-bold">Date:</span> {new Date(detailsEvent.date).toLocaleString()}
+              </div>
+              <div>
+                <span className="font-bold">Location:</span> {detailsEvent.location}
+              </div>
+              <div>
+                <span className="font-bold">Capacity:</span> {detailsEvent.attendeeCount}/{detailsEvent.capacity}
+              </div>
+              <div>
+                <span className="font-bold">Open:</span> {detailsEvent.isOpen ? "Yes" : "No"}
+              </div>
+            </div>
+
+            {isOfficer && Array.isArray(detailsEvent.attendees) && (
+              <div>
+                <h3 className="font-black text-gray-900 dark:text-white mb-2">
+                  Attendees ({detailsEvent.attendees.length})
+                </h3>
+                <div className="max-h-56 overflow-y-auto space-y-2">
+                  {detailsEvent.attendees.map((attendee) => (
+                    <div
+                      key={attendee.rsvpId}
+                      className="p-3 rounded-xl bg-gray-50 dark:bg-slate-800"
+                    >
+                      <div className="font-bold text-gray-900 dark:text-white">
+                        {attendee.member?.displayName || "Member"}
+                      </div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        {attendee.member?.email || "No email"}
+                      </div>
+                    </div>
+                  ))}
+                  {!detailsEvent.attendees.length && (
+                    <div className="text-sm text-gray-500 dark:text-gray-400">No attendees yet.</div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {detailsLoading && (
+        <div className="fixed bottom-4 right-4 px-4 py-2 rounded-xl bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 text-sm font-semibold text-gray-700 dark:text-gray-200 shadow-lg">
+          Loading event details...
+        </div>
+      )}
     </div>
   );
 }

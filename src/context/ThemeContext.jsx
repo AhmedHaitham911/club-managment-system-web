@@ -1,6 +1,5 @@
-import { createContext, useState, useEffect } from "react";
-
-export const ThemeContext = createContext();
+import { useEffect, useState } from "react";
+import { ThemeContext } from "./theme-context";
 
 export const ThemeProvider = ({ children }) => {
   // بنجيب الثيم من اللوكال ستوريدج أو بنخليه فاتح كافتراضي

@@ -17,6 +17,10 @@ import AdminChat from "./pages/chat/AdminChat";
 
 import Login from "./pages/auth/Login";
 import SignUp from "./pages/auth/SignUp";
+import VerifyEmail from "./pages/auth/VerifyEmail";
+import ForgotPassword from "./pages/auth/ForgotPassword";
+import ResetPassword from "./pages/auth/ResetPassword";
+import RequestVerificationEmail from "./pages/auth/RequestVerificationEmail";
 
 const router = createBrowserRouter([
   {
@@ -39,6 +43,10 @@ const router = createBrowserRouter([
   },
   { path: "/login", element: <Login /> },
   { path: "/signup", element: <SignUp /> },
+  { path: "/verify-email", element: <VerifyEmail /> },
+  { path: "/forgot-password", element: <ForgotPassword /> },
+  { path: "/reset-password", element: <ResetPassword /> },
+  { path: "/resend-verification", element: <RequestVerificationEmail /> },
   { path: "*", element: <Navigate to="/" replace /> },
 ]);
 

@@ -4,7 +4,7 @@ import { useFormik } from "formik";
 import * as Yup from "yup";
 import toast from "react-hot-toast";
 import { Mail, Lock, Eye, EyeOff, ShieldCheck } from "lucide-react";
-import { AuthContext } from "../../context/AuthContext";
+import { AuthContext } from "../../context/auth-context";
 import { api, getErrorMessage, unwrapData } from "../../lib/api";
 
 export default function Login() {
@@ -28,11 +28,17 @@ export default function Login() {
 
         if (payload?.requiresOtp) {
           setOtpToken(payload.otpToken);
-          toast.success("OTP required. Check your email for the code.", { id: toastId });
+          toast.success("OTP required. Open your authenticator app for the code.", {
+            id: toastId,
+          });
           return;
         }
 
-        login(payload.user, payload.token);
+        if (!payload?.token || !payload?.user) {
+          throw new Error("Login response is missing token or user.");
+        }
+
+        await login(payload.user, payload.token);
         toast.success("Login successful.", { id: toastId });
         navigate("/");
       } catch (error) {
@@ -50,7 +56,10 @@ export default function Login() {
         otpCode,
       });
       const payload = unwrapData(response);
-      login(payload.user, payload.token);
+      if (!payload?.token || !payload?.user) {
+        throw new Error("OTP verification response is missing token or user.");
+      }
+      await login(payload.user, payload.token);
       toast.success("Login successful.", { id: toastId });
       navigate("/");
     } catch (error) {
@@ -119,7 +128,7 @@ export default function Login() {
         {otpToken && (
           <form onSubmit={handleOtpVerify} className="mt-6 space-y-3 p-4 rounded-2xl bg-violet-50 dark:bg-violet-950/30 border border-violet-100 dark:border-violet-900">
             <div className="flex items-center gap-2 text-violet-700 dark:text-violet-300 font-bold text-sm">
-              <ShieldCheck size={16} /> OTP Verification
+              <ShieldCheck size={16} /> Authenticator OTP Verification
             </div>
             <input
               type="text"
@@ -142,6 +151,21 @@ export default function Login() {
           New account?{" "}
           <Link to="/signup" className="font-bold text-violet-600 dark:text-violet-400">
             Create one
+          </Link>
+        </p>
+        <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">
+          Forgot password?{" "}
+          <Link to="/forgot-password" className="font-bold text-violet-600 dark:text-violet-400">
+            Reset it
+          </Link>
+        </p>
+        <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+          Didn&apos;t get email verification?{" "}
+          <Link
+            to="/resend-verification"
+            className="font-bold text-violet-600 dark:text-violet-400"
+          >
+            Resend link
           </Link>
         </p>
       </div>
